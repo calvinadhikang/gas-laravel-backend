@@ -253,6 +253,32 @@ class InvoiceController extends Controller
     public function delete($id)
     {
         $invoice = HInvoice::find($id);
+
+        // remove Detail Invoice
+        $products = DInvoice::where('invoice_id', $id)->get();
+        foreach ($products as $product) {
+            // create inventory refund
+            $inventory = new Inventory();
+            $inventory->product_id = $product->product_id;
+            $inventory->stock = $product->quantity;
+            $inventory->base_price = $product->price;
+            $inventory->type = 'refund-invoice';
+            $inventory->reference_id = $id;
+            $inventory->save();
+
+            // refund product stock
+            $product->stock += $product->quantity;
+            $product->save();
+
+            $product->delete();
+        }
+
+        //remove product profit
+        $productProfits = ProductProfit::where('invoice_id', $id)->get();
+        foreach ($productProfits as $productProfit) {
+            $productProfit->delete();
+        }
+
         $invoice->delete();
 
         return response()->json([
@@ -264,6 +290,90 @@ class InvoiceController extends Controller
     {
         $invoice = HInvoice::find($id);
         $invoice->update($request->all());
+        $invoice->save();
+
+        return response()->json([
+            'message' => 'Success',
+            'data' => $invoice
+        ]);
+    }
+
+    public function transactionUnFinished($id)
+    {
+        $hinvoice = HInvoice::find($id);
+        $hinvoice->status = 'created';
+        $hinvoice->save();
+
+        $products = DInvoice::where('invoice_id', $id)->get();
+        foreach ($products as $product) {
+            // create inventory refund
+            $inventory = new Inventory();
+            $inventory->product_id = $product->product_id;
+            $inventory->stock = $product->quantity;
+            $inventory->base_price = $product->price;
+            $inventory->type = 'refund-invoice';
+            $inventory->reference_id = $id;
+            $inventory->save();
+
+            // refund product stock
+            $targetProduct = Product::find($product->product_id);
+            $targetProduct->stock += $product->quantity;
+            $targetProduct->save();
+        }
+
+        //remove product profit
+        $productProfits = ProductProfit::where('invoice_id', $id)->get();
+        foreach ($productProfits as $productProfit) {
+            $productProfit->delete();
+        }
+
+        return response()->json([
+            'message' => 'Success',
+        ]);
+    }
+
+    public function updateInvoiceProduct(Request $request, $id)
+    {
+        $invoice = HInvoice::find($id);
+        $newProducts = $request->products;
+
+        //remove old products
+        $oldProducts = DInvoice::where('invoice_id', $id)->get();
+        foreach ($oldProducts as $oldProduct) {
+            $oldProduct->delete();
+        }
+
+        // stats
+        $total = 0;
+        $ppn = $invoice->type == 'ppn' ? 11 : 0;
+        $ppn_multiplier = $invoice->type == 'ppn' ? 0.11 : 0;
+
+        $ppn_value = 0;
+        $grand_total = 0;
+
+        foreach ($newProducts as $newProduct) {
+            $total += $newProduct['price'] * $newProduct['quantity'];
+            $ppn_value += $newProduct['price'] * $newProduct['quantity'] * $ppn_multiplier;
+            $grand_total += $newProduct['price'] * $newProduct['quantity'] * (1 + $ppn_multiplier);
+        }
+
+        //add new products
+        foreach ($newProducts as $newProduct) {
+            $dInvoice = new DInvoice();
+            $dInvoice->invoice_id = $invoice->id;
+            $dInvoice->product_id = $newProduct['id'];
+            $dInvoice->quantity = $newProduct['quantity'];
+            $dInvoice->price = $newProduct['price'];
+            $dInvoice->total = $newProduct['price'] * $newProduct['quantity'];
+            $dInvoice->ppn = $ppn;
+            $dInvoice->ppn_value = $newProduct['price'] * $newProduct['quantity'] * $ppn_multiplier;
+            $dInvoice->grand_total = $newProduct['price'] * $newProduct['quantity'] * (1 + $ppn_multiplier);
+            $dInvoice->save();
+        }
+
+        $invoice->total = $total;
+        $invoice->ppn_value = $ppn_value;
+        $invoice->grand_total = $grand_total;
         $invoice->save();
 
         return response()->json([

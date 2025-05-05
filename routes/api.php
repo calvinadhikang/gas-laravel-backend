@@ -70,6 +70,8 @@ Route::prefix('invoice')->group(function () {
     Route::post('/update/{id}', [InvoiceController::class, 'update']);
     Route::post('/add-payment/{id}', [InvoiceController::class, 'addPayment']);
     Route::post('/transaction-finished/{id}', [InvoiceController::class, 'transactionFinished']);
+    Route::post('/transaction-unfinished/{id}', [InvoiceController::class, 'transactionUnFinished']);
+    Route::post('/update-product/{id}', [InvoiceController::class, 'updateInvoiceProduct']);
 
     Route::post('/delete/{id}', [InvoiceController::class, 'delete']);
 });
