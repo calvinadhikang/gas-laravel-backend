@@ -288,6 +288,15 @@ class InvoiceController extends Controller
 
     public function update(Request $request, $id)
     {
+        $newCode = $request->code;
+        $existingCode = HInvoice::where('code', $newCode)->first();
+        if ($existingCode) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Kode sudah ada, silahkan gunakan kode lain',
+            ]);
+        }
+
         $invoice = HInvoice::find($id);
         $invoice->update($request->all());
         $invoice->save();
