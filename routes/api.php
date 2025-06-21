@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\VendorController;
@@ -74,4 +75,7 @@ Route::prefix('invoice')->group(function () {
     Route::post('/update-product/{id}', [InvoiceController::class, 'updateInvoiceProduct']);
 
     Route::post('/delete/{id}', [InvoiceController::class, 'delete']);
+
+    Route::get('/download/ppn/{id}', [DocumentController::class, 'downloadInvoicePPN']);
+    Route::get('/download/non-ppn/{id}', [DocumentController::class, 'downloadNonInvoicePPN']);
 });

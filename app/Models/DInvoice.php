@@ -17,4 +17,9 @@ class DInvoice extends Model
         'ppn_value',
         'grand_total',
     ];
+
+    public function product()
+    {
+        return $this->belongsTo(Product::class, 'product_id', 'id');
+    }
 }
